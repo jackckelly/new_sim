@@ -83,35 +83,6 @@
                 color: #333;
             }
 
-            .agent-backstory {
-                margin-top: 10px;
-                padding: 10px;
-                background: white;
-                border-radius: 6px;
-                font-size: 14px;
-                color: #666;
-                max-height: 250px;
-                overflow-y: auto;
-                border: 1px solid #eee;
-                line-height: 1.4;
-                width: 100%;
-                min-height: 100px;
-                resize: vertical;
-            }
-
-            .agent-backstory::-webkit-scrollbar {
-                width: 6px;
-            }
-
-            .agent-backstory::-webkit-scrollbar-track {
-                background: #f1f1f1;
-            }
-
-            .agent-backstory::-webkit-scrollbar-thumb {
-                background: #ccc;
-                border-radius: 3px;
-            }
-
             .topic-select {
                 grid-column: 1 / -1;
             }
@@ -217,30 +188,32 @@
                 cursor: not-allowed;
             }
 
-            .backstory-controls {
-                grid-column: 1 / -1;
-                display: flex;
-                gap: 10px;
-                justify-content: center;
-                margin-bottom: 20px;
+            .agent-backstory {
+                margin-top: 10px;
+                padding: 10px;
+                background: white;
+                border-radius: 6px;
+                font-size: 14px;
+                color: #666;
+                max-height: 250px;
+                overflow-y: auto;
+                border: 1px solid #eee;
+                line-height: 1.4;
             }
 
-            .backstory-controls button {
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
+            .agent-backstory::-webkit-scrollbar {
+                width: 6px;
             }
 
-            .save-btn {
-                background-color: #28a745;
-                color: white;
+            .agent-backstory::-webkit-scrollbar-track {
+                background: #f1f1f1;
             }
 
-            .revert-btn {
-                background-color: #dc3545;
-                color: white;
+            .agent-backstory::-webkit-scrollbar-thumb {
+                background: #ccc;
+                border-radius: 3px;
             }
+
         </style>
     </head>
     <body>
@@ -252,45 +225,38 @@
             
             <div class="setup-panel">
                 <div class="setup-grid">
-                    <form method="POST" action="{{ url_for('save_backstories') }}" id="backstory-form">
-                        <div class="agent-select">
-                            <h3>First Agent</h3>
-                            <select id="agent1" name="agent1">
-                                {% for id, agent in agents.items() %}
-                                <option value="{{ id }}" {% if id == agent1 %}selected{% endif %}>
-                                    {{ agent.name }} ({{ agent.tone }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <textarea name="agent1_backstory" class="agent-backstory" rows="5">{{ agents[agent1].get('backstory', 'No detailed backstory available.') }}</textarea>
-                        </div>
-                        
-                        <div class="agent-select">
-                            <h3>Second Agent</h3>
-                            <select id="agent2" name="agent2">
-                                {% for id, agent in agents.items() %}
-                                <option value="{{ id }}" {% if id == agent2 %}selected{% endif %}>
-                                    {{ agent.name }} ({{ agent.tone }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <textarea name="agent2_backstory" class="agent-backstory" rows="5">{{ agents[agent2].get('backstory', 'No detailed backstory available.') }}</textarea>
-                        </div>
-                        
-                        <div class="topic-select">
-                            <h3>Conversation Topic</h3>
-                            <select id="topic">
-                                {% for topic in topics %}
-                                <option value="{{ topic }}">{{ topic }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="backstory-controls">
-                            <button type="submit" class="save-btn">Save Backstories</button>
-                            <button type="submit" class="revert-btn" formaction="{{ url_for('revert_backstories') }}" formmethod="POST">Revert Backstories</button>
-                        </div>
-                    </form>
+                    <div class="agent-select">
+                        <h3>First Agent</h3>
+                        <select id="agent1">
+                            {% for id, agent in agents.items() %}
+                            <option value="{{ id }}" {% if id == agent1 %}selected{% endif %}>
+                                {{ agent.name }} ({{ agent.tone }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="agent-backstory">{{ agents[agent1].get('backstory', 'No detailed backstory available.') }}</div>
+                    </div>
+                    
+                    <div class="agent-select">
+                        <h3>Second Agent</h3>
+                        <select id="agent2">
+                            {% for id, agent in agents.items() %}
+                            <option value="{{ id }}" {% if id == agent2 %}selected{% endif %}>
+                                {{ agent.name }} ({{ agent.tone }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="agent-backstory">{{ agents[agent2].get('backstory', 'No detailed backstory available.') }}</div>
+                    </div>
+                    
+                    <div class="topic-select">
+                        <h3>Conversation Topic</h3>
+                        <select id="topic">
+                            {% for topic in topics %}
+                            <option value="{{ topic }}">{{ topic }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="button-group">

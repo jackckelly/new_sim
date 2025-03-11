@@ -50,12 +50,6 @@ active_simulations = {}
 
 @app.route("/")
 def index():
-    # Get backstories for each agent
-    agent_backstories = {
-        agent_id: config.get("backstory", "No detailed backstory available.")
-        for agent_id, config in AGENTS.items()
-    }
-
     # Get the first two agents as default selected agents
     selected_agents = list(AGENTS.keys())[:2]
 
@@ -63,9 +57,8 @@ def index():
         "index.html",
         agents=AGENTS,
         topics=TOPICS,
-        agent_backstories=agent_backstories,
-        agent1=selected_agents[0],  # Pass the first selected agent
-        agent2=selected_agents[1],  # Pass the second selected agent
+        agent1=selected_agents[0],
+        agent2=selected_agents[1],
     )
 
 
@@ -201,31 +194,6 @@ def continue_simulation(session_id):
     socketio.sleep(2)
     if sim_data["is_active"]:
         continue_simulation(session_id)
-
-
-@app.route("/save_backstories", methods=["POST"])
-def save_backstories():
-    """Save updated backstories for agents"""
-    agent1_id = request.form.get("agent1")
-    agent2_id = request.form.get("agent2")
-    agent1_backstory = request.form.get("agent1_backstory")
-    agent2_backstory = request.form.get("agent2_backstory")
-
-    if all([agent1_id, agent2_id, agent1_backstory, agent2_backstory]):
-        AGENTS[agent1_id]["backstory"] = agent1_backstory
-        AGENTS[agent2_id]["backstory"] = agent2_backstory
-
-    return redirect(url_for("index"))
-
-
-@app.route("/revert_backstories", methods=["POST"])
-def revert_backstories():
-    """Revert backstories to original configuration"""
-    agents_config = load_yaml_config(os.path.join(config_dir, "agents.yaml"))
-    AGENTS.clear()
-    AGENTS.update(agents_config["agents"])
-
-    return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
