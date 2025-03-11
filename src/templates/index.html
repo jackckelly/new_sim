@@ -126,27 +126,25 @@
 
             .move-indicator {
                 font-size: 12px;
-                color: #666;
-                margin-top: 4px;
-                font-style: italic;
-                padding: 4px 8px;
-                background: rgba(255, 255, 255, 0.9);
-                border-radius: 4px;
-                display: inline-block;
+                color: rgba(255, 255, 255, 0.9);
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
             }
 
-            .move-type {
+            .agent-name {
+                font-size: 15px;
                 font-weight: bold;
-                text-transform: capitalize;
+                color: rgba(255, 255, 255, 0.9);
+                margin-bottom: 4px;
             }
 
-            .agent1 .move-indicator {
-                margin-left: 16px;
+            .agent2 .agent-name {
+                color: rgba(51, 51, 51, 0.8);
             }
 
             .agent2 .move-indicator {
-                margin-right: 16px;
-                text-align: right;
+                color: rgba(51, 51, 51, 0.8);
             }
 
             .agent1 .message-content {
@@ -318,7 +316,6 @@
                 }
                 else if (type === "response") {
                     console.log('Processing response:', content);
-                    // Get the first agent from the agentData for comparison
                     const firstAgentName = Object.values(agentData)[0].name;
                     console.log('First agent name:', firstAgentName);
                     console.log('Current agent:', agent);
@@ -328,23 +325,28 @@
                     // Create message content
                     const messageContent = document.createElement("div");
                     messageContent.className = "message-content";
-                    messageContent.textContent = `${agent}: ${content}`;
-                    messageDiv.appendChild(messageContent);
-
-                    // Create move indicator if move info exists in the data object
+                    
+                    // Add agent name
+                    const agentName = document.createElement("div");
+                    agentName.className = "agent-name";
+                    agentName.textContent = agent;
+                    messageContent.appendChild(agentName);
+                    
+                    // Add move indicator inside message content if move info exists
                     if (data && data.move) {
                         console.log('Adding move indicator:', data.move);
                         const moveIndicator = document.createElement("div");
                         moveIndicator.className = "move-indicator";
-                        
-                        const moveType = document.createElement("span");
-                        moveType.className = "move-type";
-                        moveType.textContent = data.move;
-                        
-                        moveIndicator.appendChild(moveType);
-                        moveIndicator.appendChild(document.createTextNode(` - ${data.move_description}`));
-                        messageDiv.appendChild(moveIndicator);
+                        moveIndicator.textContent = data.move;
+                        messageContent.appendChild(moveIndicator);
                     }
+                    
+                    // Add the message text without the agent name prefix
+                    const messageText = document.createElement("div");
+                    messageText.textContent = content;
+                    messageContent.appendChild(messageText);
+                    
+                    messageDiv.appendChild(messageContent);
                 }
                 else if (type === "summary") {
                     messageDiv.className = "summary";
