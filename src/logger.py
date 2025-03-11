@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 from pathlib import Path
+from typing import Optional
 
 
 class ConversationLogger:
@@ -22,13 +23,24 @@ class ConversationLogger:
         }
         self.save_log()
 
-    def log_message(self, message_type, agent_name=None, content=None):
+    def log_message(
+        self,
+        message_type: str,
+        agent_name: Optional[str] = None,
+        content: Optional[str] = None,
+        move: Optional[str] = None,
+        move_description: Optional[str] = None,
+    ):
         message_entry = {
             "timestamp": datetime.now().isoformat(),
             "type": message_type,
             "agent": agent_name,
             "content": content,
         }
+
+        if move and move_description:
+            message_entry.update({"move": move, "move_description": move_description})
+
         self.conversation_data["messages"].append(message_entry)
         self.save_log()
 

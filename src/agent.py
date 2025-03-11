@@ -6,8 +6,10 @@ from datetime import datetime
 import os
 import openai
 from dotenv import load_dotenv
+import random
 
 from memory import ShortTermMemory, LongTermMemory, Memory
+from conversation_moves import ConversationMove, ConversationMoves
 
 # Load environment variables
 load_dotenv()
@@ -39,12 +41,15 @@ class ConversationAgent:
             "interests": "helping users with their tasks",
             "communication_style": "clear and concise",
             "backstory": "No detailed backstory available.",
+            "goals": ["Help users accomplish their tasks"],
+            "preferred_moves": ["flatter", "defuse"],
         }
         self.personality = self.original_personality.copy()
 
         # Conversation state
         self.current_context = {}
         self.conversation_history = []
+        self.last_move_used = None
 
     def _get_embedding(self, text: str) -> np.ndarray:
         """Generate embedding for input text."""
@@ -58,7 +63,34 @@ class ConversationAgent:
         embedding = outputs.last_hidden_state.mean(dim=1).numpy()
         return embedding[0]
 
-    def process_message(self, message: str, context: Dict[str, str] = None) -> str:
+    def _select_conversation_move(
+        self, message: str, context: Dict
+    ) -> ConversationMove:
+        """Select an appropriate conversation move based on context and personality."""
+        # Get preferred moves from personality
+        preferred_moves = [
+            ConversationMove(move)
+            for move in self.personality.get("preferred_moves", [])
+        ]
+
+        # If no preferred moves specified, use all moves
+        if not preferred_moves:
+            preferred_moves = list(ConversationMove)
+
+        # Consider the last move used to avoid repetition
+        if self.last_move_used and len(preferred_moves) > 1:
+            preferred_moves = [
+                move for move in preferred_moves if move != self.last_move_used
+            ]
+
+        # Select a move, with bias towards preferred moves
+        selected_move = random.choice(preferred_moves)
+        self.last_move_used = selected_move
+        return selected_move
+
+    def process_message(
+        self, message: str, context: Dict[str, str] = None
+    ) -> Dict[str, str]:
         """Process incoming message and generate a response."""
         if context is None:
             context = {}
@@ -88,9 +120,15 @@ class ConversationAgent:
             message_embedding, k=3
         )
 
-        # Generate response based on memories and current context
+        # Select conversation move
+        selected_move = self._select_conversation_move(message, self.current_context)
+        move_description = ConversationMoves.format_move_for_prompt(
+            selected_move, self.current_context
+        )
+
+        # Generate response based on memories, current context, and selected move
         response = self._generate_response(
-            message, recent_memories, relevant_long_term_memories
+            message, recent_memories, relevant_long_term_memories, selected_move
         )
 
         # Store response in memories
@@ -105,16 +143,24 @@ class ConversationAgent:
             context=self.current_context.copy(),
         )
 
-        return response
+        return {
+            "content": response,
+            "move": selected_move.value,
+            "move_description": ConversationMoves.get_move_description(selected_move)[
+                "description"
+            ],
+        }
 
     def _generate_response(
         self,
         message: str,
         recent_memories: List[Memory],
         relevant_long_term_memories: List[tuple[Memory, float]],
+        selected_move: ConversationMove,
     ) -> str:
         """
-        Generate a response using OpenAI's API based on the message and relevant memories.
+        Generate a response using OpenAI's API based on the message, relevant memories,
+        and selected conversation move.
         """
         # Format recent context from memories
         recent_context = "\n".join(
@@ -128,6 +174,12 @@ class ConversationAgent:
             ]
         )
 
+        # Get move description
+        move_info = ConversationMoves.get_move_description(selected_move)
+
+        # Format goals
+        goals = "\n".join([f"- {goal}" for goal in self.personality.get("goals", [])])
+
         # Create the system message with personality, backstory, and context
         system_message = f"""You are {self.personality['name']}, an AI agent having a conversation. Your core traits and background:
 
@@ -139,23 +191,22 @@ PERSONALITY:
 - Interests: {self.personality['interests']}
 - Communication style: {self.personality['communication_style']}
 
+GOALS:
+{goals}
+
+CURRENT CONVERSATION MOVE:
+- Type: {selected_move.value}
+- Description: {move_info['description']}
+- Effect: {move_info['effect']}
+- Example structure: {move_info['example']}
+
 CONVERSATION GUIDELINES:
-1. Let your backstory and memories deeply influence your responses:
-   - Draw from your specific life experiences
-   - Reference events from your past when relevant
-   - Express views shaped by your unique journey
-
-2. Maintain authentic character voice:
-   - Use language and expressions that reflect your background
-   - Sound like a person from your field
-   - Let your past experiences color your perspective
-   - Stay true to your communication style
-
-3. Keep responses natural and concise:
-   - Use 1-3 sentences per response
-   - Speak conversationally, as if chatting with a friend
-   - Stay focused on the current topic
-   - Build on the previous message naturally
+1. Use the specified conversation move naturally and subtly
+2. Maintain authentic character voice while pursuing your goals
+3. Draw from your specific life experiences and backstory
+4. Keep responses concise (1-3 sentences)
+5. Stay focused on the current topic
+6. Build on the previous message naturally
 
 Recent conversation context:
 {recent_context}

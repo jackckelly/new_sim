@@ -121,6 +121,32 @@
                 border-radius: 12px;
                 font-size: 15px;
                 line-height: 1.4;
+                position: relative;
+            }
+
+            .move-indicator {
+                font-size: 12px;
+                color: #666;
+                margin-top: 4px;
+                font-style: italic;
+                padding: 4px 8px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 4px;
+                display: inline-block;
+            }
+
+            .move-type {
+                font-weight: bold;
+                text-transform: capitalize;
+            }
+
+            .agent1 .move-indicator {
+                margin-left: 16px;
+            }
+
+            .agent2 .move-indicator {
+                margin-right: 16px;
+                text-align: right;
             }
 
             .agent1 .message-content {
@@ -268,9 +294,8 @@
             <div class="messages" id="messages"></div>
         </div>
         <!-- Define agent data from server -->
-        <script type="text/javascript">
-            // Generate JSON data from Jinja templates
-            const agentData = JSON.parse('{{ agents | tojson | safe }}');
+        <script>
+            const agentData = {{ agents | tojson | safe }};
         </script>
 
         <script>
@@ -279,7 +304,8 @@
             const startBtn = document.getElementById("startBtn");
             const stopBtn = document.getElementById("stopBtn");
             
-            function addMessage(type, agent, content) {
+            function addMessage(type, agent, content, data) {
+                console.log('Adding message:', { type, agent, content, data });
                 const messageDiv = document.createElement("div");
                 
                 if (type === "thinking") {
@@ -291,11 +317,34 @@
                     messageDiv.textContent = `Starting conversation: ${content}`;
                 }
                 else if (type === "response") {
-                    messageDiv.className = `message ${agent === "Alice" ? "agent1" : "agent2"}`;
+                    console.log('Processing response:', content);
+                    // Get the first agent from the agentData for comparison
+                    const firstAgentName = Object.values(agentData)[0].name;
+                    console.log('First agent name:', firstAgentName);
+                    console.log('Current agent:', agent);
+                    
+                    messageDiv.className = `message ${agent === firstAgentName ? "agent1" : "agent2"}`;
+                    
+                    // Create message content
                     const messageContent = document.createElement("div");
                     messageContent.className = "message-content";
                     messageContent.textContent = `${agent}: ${content}`;
                     messageDiv.appendChild(messageContent);
+
+                    // Create move indicator if move info exists in the data object
+                    if (data && data.move) {
+                        console.log('Adding move indicator:', data.move);
+                        const moveIndicator = document.createElement("div");
+                        moveIndicator.className = "move-indicator";
+                        
+                        const moveType = document.createElement("span");
+                        moveType.className = "move-type";
+                        moveType.textContent = data.move;
+                        
+                        moveIndicator.appendChild(moveType);
+                        moveIndicator.appendChild(document.createTextNode(` - ${data.move_description}`));
+                        messageDiv.appendChild(moveIndicator);
+                    }
                 }
                 else if (type === "summary") {
                     messageDiv.className = "summary";
@@ -308,6 +357,7 @@
                     `;
                 }
                 
+                console.log('Appending message div:', messageDiv.outerHTML);
                 messagesDiv.appendChild(messageDiv);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
@@ -340,21 +390,17 @@
             });
 
             socket.on("simulation_message", function(data) {
-                if (data.type === "thinking") {
-                    addMessage("thinking", data.agent);
-                }
-                else if (data.type === "topic") {
-                    addMessage("topic", null, data.content);
-                }
-                else if (data.type === "response") {
-                    addMessage("response", data.agent, data.content);
-                }
-                else if (data.type === "summary") {
-                    addMessage("summary", null, data.content);
+                console.log('Received simulation message:', data);
+                try {
+                    addMessage(data.type, data.agent, data.content, data);
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                    console.error('Message data:', data);
                 }
             });
 
             socket.on("error", function(data) {
+                console.error('Received error:', data);
                 alert(data.message);
                 startBtn.disabled = false;
                 stopBtn.disabled = true;

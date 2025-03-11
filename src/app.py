@@ -173,14 +173,22 @@ def continue_simulation(session_id):
     )
 
     if logger:
-        logger.log_message("response", agent1_name, response1)
+        logger.log_message(
+            "response",
+            agent1_name,
+            response1["content"],
+            move=response1["move"],
+            move_description=response1["move_description"],
+        )
 
     emit(
         "simulation_message",
         {
             "type": "response",
             "agent": agent1_name,
-            "content": response1,
+            "content": response1["content"],
+            "move": response1["move"],
+            "move_description": response1["move_description"],
         },
     )
 
@@ -198,7 +206,7 @@ def continue_simulation(session_id):
     )
 
     response2 = sim_data["agent2"].process_message(
-        response1,
+        response1["content"],
         context={
             "speaker": agent1_name,
             "turn": turn,
@@ -207,19 +215,27 @@ def continue_simulation(session_id):
     )
 
     if logger:
-        logger.log_message("response", agent2_name, response2)
+        logger.log_message(
+            "response",
+            agent2_name,
+            response2["content"],
+            move=response2["move"],
+            move_description=response2["move_description"],
+        )
 
     emit(
         "simulation_message",
         {
             "type": "response",
             "agent": agent2_name,
-            "content": response2,
+            "content": response2["content"],
+            "move": response2["move"],
+            "move_description": response2["move_description"],
         },
     )
 
     # Update simulation state
-    sim_data["current_message"] = response2
+    sim_data["current_message"] = response2["content"]
     sim_data["turn"] += 1
 
     # Continue the simulation after a delay
