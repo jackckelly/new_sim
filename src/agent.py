@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import random
 
 from memory import ShortTermMemory, LongTermMemory, Memory
-from conversation_moves import ConversationMove, ConversationMoves
+from conversation_moves import ConversationMoves
 
 # Load environment variables
 load_dotenv()
@@ -63,19 +63,20 @@ class ConversationAgent:
         embedding = outputs.last_hidden_state.mean(dim=1).numpy()
         return embedding[0]
 
-    def _select_conversation_move(
-        self, message: str, context: Dict
-    ) -> ConversationMove:
+    def _select_conversation_move(self, message: str, context: Dict) -> str:
         """Select an appropriate conversation move based on context and personality."""
         # Get preferred moves from personality
-        preferred_moves = [
-            ConversationMove(move)
-            for move in self.personality.get("preferred_moves", [])
-        ]
+        preferred_moves = self.personality.get("preferred_moves", [])
+        valid_moves = ConversationMoves.get_valid_moves()
 
-        # If no preferred moves specified, use all moves
-        if not preferred_moves:
-            preferred_moves = list(ConversationMove)
+        # If no preferred moves specified or none are valid, use all valid moves
+        if not preferred_moves or not any(
+            move in valid_moves for move in preferred_moves
+        ):
+            preferred_moves = list(valid_moves)
+        else:
+            # Filter out any invalid moves from preferred moves
+            preferred_moves = [move for move in preferred_moves if move in valid_moves]
 
         # Consider the last move used to avoid repetition
         if self.last_move_used and len(preferred_moves) > 1:
@@ -145,7 +146,7 @@ class ConversationAgent:
 
         return {
             "content": response,
-            "move": selected_move.value,
+            "move": selected_move,
             "move_description": ConversationMoves.get_move_description(selected_move)[
                 "description"
             ],
@@ -156,7 +157,7 @@ class ConversationAgent:
         message: str,
         recent_memories: List[Memory],
         relevant_long_term_memories: List[tuple[Memory, float]],
-        selected_move: ConversationMove,
+        selected_move: str,
     ) -> str:
         """
         Generate a response using OpenAI's API based on the message, relevant memories,
@@ -195,7 +196,7 @@ GOALS:
 {goals}
 
 CURRENT CONVERSATION MOVE:
-- Type: {selected_move.value}
+- Type: {selected_move}
 - Description: {move_info['description']}
 - Effect: {move_info['effect']}
 - Example structure: {move_info['example']}

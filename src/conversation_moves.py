@@ -1,62 +1,56 @@
-from enum import Enum
 from typing import Dict, Optional
-
-
-class ConversationMove(Enum):
-    FLATTER = "flatter"
-    CHALLENGE = "challenge"
-    DEFEND = "defend"
-    DEFUSE = "defuse"
-    ATTACK = "attack"
-    ENTRUST = "entrust"
+import yaml
+from pathlib import Path
 
 
 class ConversationMoves:
-    MOVE_DESCRIPTIONS = {
-        ConversationMove.FLATTER: {
-            "description": "Express admiration or praise for the other agent's qualities, achievements, or ideas",
-            "effect": "Builds rapport and trust, may make the other agent more receptive",
-            "example": "Your experience in [field] is truly impressive, and your insights about [topic] are fascinating.",
-        },
-        ConversationMove.CHALLENGE: {
-            "description": "Question or probe the other agent's assumptions, beliefs, or statements",
-            "effect": "Stimulates deeper discussion and critical thinking",
-            "example": "That's an interesting perspective, but have you considered [alternative viewpoint]?",
-        },
-        ConversationMove.DEFEND: {
-            "description": "Protect and justify one's position, beliefs, or statements when challenged",
-            "effect": "Maintains credibility and conviction in one's stance",
-            "example": "I stand by my view because [reasoning], and my experience has shown that [evidence].",
-        },
-        ConversationMove.DEFUSE: {
-            "description": "Reduce tension or conflict by finding common ground or redirecting the conversation",
-            "effect": "Prevents escalation and maintains productive dialogue",
-            "example": "I see where you're coming from, and perhaps we can find middle ground on [aspect].",
-        },
-        ConversationMove.ATTACK: {
-            "description": "Directly criticize or oppose the other agent's position, beliefs, or statements",
-            "effect": "Creates conflict and forces the other agent to defend or reconsider",
-            "example": "Your argument is flawed because [reason], and here's why that matters...",
-        },
-        ConversationMove.ENTRUST: {
-            "description": "Share personal or vulnerable information to build trust and deepen connection",
-            "effect": "Creates intimacy and encourages reciprocal sharing",
-            "example": "Let me share a personal experience about [topic] that shaped my perspective...",
-        },
-    }
+    _instance = None
+    _move_descriptions = None
+    _valid_moves = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ConversationMoves, cls).__new__(cls)
+            cls._load_moves()
+        return cls._instance
+
+    @classmethod
+    def _load_moves(cls):
+        if cls._move_descriptions is None:
+            config_path = Path(__file__).parent / "config" / "moves.yaml"
+            with open(config_path, "r") as f:
+                config = yaml.safe_load(f)
+
+            cls._move_descriptions = config["moves"]
+            cls._valid_moves = set(cls._move_descriptions.keys())
+
+    @classmethod
+    def get_valid_moves(cls) -> set[str]:
+        """Get the set of valid move names."""
+        cls._load_moves()
+        return cls._valid_moves
 
     @staticmethod
-    def get_move_description(move: ConversationMove) -> Dict:
+    def get_move_description(move: str) -> Dict:
         """Get the description and details of a conversation move."""
-        return ConversationMoves.MOVE_DESCRIPTIONS[move]
+        ConversationMoves._load_moves()
+        if move not in ConversationMoves._valid_moves:
+            raise ValueError(
+                f"Invalid move: {move}. Valid moves are: {ConversationMoves._valid_moves}"
+            )
+        return ConversationMoves._move_descriptions[move]
 
     @staticmethod
-    def format_move_for_prompt(
-        move: ConversationMove, context: Optional[Dict] = None
-    ) -> str:
+    def format_move_for_prompt(move: str, context: Optional[Dict] = None) -> str:
         """Format a move description for inclusion in an AI prompt."""
-        move_info = ConversationMoves.MOVE_DESCRIPTIONS[move]
-        formatted = f"MOVE: {move.value.upper()}\n"
+        ConversationMoves._load_moves()
+        if move not in ConversationMoves._valid_moves:
+            raise ValueError(
+                f"Invalid move: {move}. Valid moves are: {ConversationMoves._valid_moves}"
+            )
+
+        move_info = ConversationMoves._move_descriptions[move]
+        formatted = f"MOVE: {move.upper()}\n"
         formatted += f"Description: {move_info['description']}\n"
         formatted += f"Effect: {move_info['effect']}\n"
         formatted += f"Example: {move_info['example']}\n"
