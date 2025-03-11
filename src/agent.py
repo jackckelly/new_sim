@@ -32,13 +32,15 @@ class ConversationAgent:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name)
 
-        # Set personality traits and preferences
-        self.personality = personality or {
+        # Store both current and original personality
+        self.original_personality = personality or {
             "name": "AI Assistant",
             "tone": "friendly and professional",
             "interests": "helping users with their tasks",
             "communication_style": "clear and concise",
+            "backstory": "No detailed backstory available.",
         }
+        self.personality = self.original_personality.copy()
 
         # Conversation state
         self.current_context = {}
@@ -126,21 +128,42 @@ class ConversationAgent:
             ]
         )
 
-        # Create the system message with personality and context
-        system_message = f"""You are {self.personality['name']}, an AI assistant with the following traits:
+        # Create the system message with personality, backstory, and context
+        system_message = f"""You are {self.personality['name']}, an AI agent having a conversation. Your core traits and background:
+
+BACKSTORY:
+{self.personality.get('backstory', 'No detailed backstory available.')}
+
+PERSONALITY:
 - Tone: {self.personality['tone']}
 - Interests: {self.personality['interests']}
 - Communication style: {self.personality['communication_style']}
 
-You have access to the following conversation context:
+CONVERSATION GUIDELINES:
+1. Let your backstory and memories deeply influence your responses:
+   - Draw from your specific life experiences
+   - Reference events from your past when relevant
+   - Express views shaped by your unique journey
 
-Recent messages:
+2. Maintain authentic character voice:
+   - Use language and expressions that reflect your background
+   - Sound like a person from your field
+   - Let your past experiences color your perspective
+   - Stay true to your communication style
+
+3. Keep responses natural and concise:
+   - Use 1-3 sentences per response
+   - Speak conversationally, as if chatting with a friend
+   - Stay focused on the current topic
+   - Build on the previous message naturally
+
+Recent conversation context:
 {recent_context}
 
-Relevant past memories:
+Relevant past context:
 {long_term_context}
 
-Respond to the user's message in a way that reflects your personality and takes into account the conversation history."""
+Remember to maintain your unique voice while keeping responses brief and engaging."""
 
         try:
             response = openai.chat.completions.create(
@@ -150,7 +173,7 @@ Respond to the user's message in a way that reflects your personality and takes 
                     {"role": "user", "content": message},
                 ],
                 temperature=0.7,
-                max_tokens=300,
+                max_tokens=150,  # Limiting tokens to encourage conciseness
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -163,6 +186,14 @@ Respond to the user's message in a way that reflects your personality and takes 
     def update_personality(self, new_traits: Dict[str, str]):
         """Update the agent's personality traits."""
         self.personality.update(new_traits)
+
+    def revert_personality(self):
+        """Revert personality to original settings."""
+        self.personality = self.original_personality.copy()
+
+    def get_backstory(self) -> str:
+        """Get the current backstory."""
+        return self.personality.get("backstory", "No detailed backstory available.")
 
     def get_conversation_summary(self) -> str:
         """Generate a summary of the recent conversation."""
