@@ -1,10 +1,14 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_socketio import SocketIO, emit
 from agent import ConversationAgent
+from logger import ConversationLogger
 from datetime import datetime
 import random
 import yaml
 import os
+import json
+from pathlib import Path
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "secret!"
@@ -44,8 +48,9 @@ except Exception as e:
         "How do you like to spend your free time?",
     ]
 
-# Store active simulations
+# Store active simulations and their loggers
 active_simulations = {}
+active_loggers = {}
 
 
 @app.route("/")
@@ -78,7 +83,15 @@ def handle_start_simulation(data):
     agent1 = ConversationAgent(personality=AGENTS[agent1_id], openai_model="gpt-4o")
     agent2 = ConversationAgent(personality=AGENTS[agent2_id], openai_model="gpt-4o")
 
-    # Store simulation data
+    # Initialize logger
+    logger = ConversationLogger(
+        session_id=session_id,
+        agent1_name=AGENTS[agent1_id]["name"],
+        agent2_name=AGENTS[agent2_id]["name"],
+        topic=topic,
+    )
+
+    # Store simulation data and logger
     active_simulations[session_id] = {
         "agent1": agent1,
         "agent2": agent2,
@@ -86,8 +99,10 @@ def handle_start_simulation(data):
         "turn": 0,
         "is_active": True,
     }
+    active_loggers[session_id] = logger
 
-    # Send initial topic
+    # Log and send initial topic
+    logger.log_message("topic", None, topic)
     emit("simulation_message", {"type": "topic", "content": topic})
 
     # Start the conversation
@@ -105,19 +120,27 @@ def handle_stop_simulation():
         agent1 = active_simulations[session_id]["agent1"]
         agent2 = active_simulations[session_id]["agent2"]
 
+        agent1_summary = agent1.get_conversation_summary()
+        agent2_summary = agent2.get_conversation_summary()
+
+        # Log summaries
+        if session_id in active_loggers:
+            active_loggers[session_id].log_summary(agent1_summary, agent2_summary)
+
         emit(
             "simulation_message",
             {
                 "type": "summary",
                 "content": {
-                    "agent1": agent1.get_conversation_summary(),
-                    "agent2": agent2.get_conversation_summary(),
+                    "agent1": agent1_summary,
+                    "agent2": agent2_summary,
                 },
             },
         )
 
         # Cleanup
         del active_simulations[session_id]
+        del active_loggers[session_id]
 
 
 def continue_simulation(session_id):
@@ -129,13 +152,15 @@ def continue_simulation(session_id):
         return
 
     sim_data = active_simulations[session_id]
+    logger = active_loggers.get(session_id)
     current_message = sim_data["current_message"]
     turn = sim_data["turn"]
 
     # Agent 1's turn
+    agent1_name = sim_data["agent1"].personality["name"]
     emit(
         "simulation_message",
-        {"type": "thinking", "agent": sim_data["agent1"].personality["name"]},
+        {"type": "thinking", "agent": agent1_name},
     )
 
     response1 = sim_data["agent1"].process_message(
@@ -147,11 +172,14 @@ def continue_simulation(session_id):
         },
     )
 
+    if logger:
+        logger.log_message("response", agent1_name, response1)
+
     emit(
         "simulation_message",
         {
             "type": "response",
-            "agent": sim_data["agent1"].personality["name"],
+            "agent": agent1_name,
             "content": response1,
         },
     )
@@ -163,25 +191,29 @@ def continue_simulation(session_id):
         return
 
     # Agent 2's turn
+    agent2_name = sim_data["agent2"].personality["name"]
     emit(
         "simulation_message",
-        {"type": "thinking", "agent": sim_data["agent2"].personality["name"]},
+        {"type": "thinking", "agent": agent2_name},
     )
 
     response2 = sim_data["agent2"].process_message(
         response1,
         context={
-            "speaker": sim_data["agent1"].personality["name"],
+            "speaker": agent1_name,
             "turn": turn,
             "timestamp": datetime.now().isoformat(),
         },
     )
 
+    if logger:
+        logger.log_message("response", agent2_name, response2)
+
     emit(
         "simulation_message",
         {
             "type": "response",
-            "agent": sim_data["agent2"].personality["name"],
+            "agent": agent2_name,
             "content": response2,
         },
     )
