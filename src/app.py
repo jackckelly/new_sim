@@ -123,9 +123,9 @@ def handle_stop_simulation():
         agent1_summary = agent1.get_conversation_summary()
         agent2_summary = agent2.get_conversation_summary()
 
-        # Log summaries
+        # End conversation and save log with summaries
         if session_id in active_loggers:
-            active_loggers[session_id].log_summary(agent1_summary, agent2_summary)
+            active_loggers[session_id].end_conversation(agent1_summary, agent2_summary)
 
         emit(
             "simulation_message",

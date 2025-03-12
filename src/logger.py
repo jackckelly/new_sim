@@ -21,7 +21,6 @@ class ConversationLogger:
             "topic": topic,
             "messages": [],
         }
-        self.save_log()
 
     def log_message(
         self,
@@ -31,6 +30,7 @@ class ConversationLogger:
         move: Optional[str] = None,
         move_description: Optional[str] = None,
     ):
+        """Add a message to the conversation log (does not save to file)."""
         message_entry = {
             "timestamp": datetime.now().isoformat(),
             "type": message_type,
@@ -42,16 +42,27 @@ class ConversationLogger:
             message_entry.update({"move": move, "move_description": move_description})
 
         self.conversation_data["messages"].append(message_entry)
-        self.save_log()
 
     def save_log(self):
+        """Explicitly save the log file."""
         with open(self.log_file, "w", encoding="utf-8") as f:
             json.dump(self.conversation_data, f, indent=2, ensure_ascii=False)
 
-    def log_summary(self, agent1_summary, agent2_summary):
+    def end_conversation(
+        self, agent1_summary: Optional[str] = None, agent2_summary: Optional[str] = None
+    ):
+        """End the conversation, add summaries if provided, and save the final log."""
         self.conversation_data["end_time"] = datetime.now().isoformat()
-        self.conversation_data["summaries"] = {
-            self.conversation_data["agent1"]: agent1_summary,
-            self.conversation_data["agent2"]: agent2_summary,
-        }
+
+        if agent1_summary or agent2_summary:
+            self.conversation_data["summaries"] = {}
+            if agent1_summary:
+                self.conversation_data["summaries"][
+                    self.conversation_data["agent1"]
+                ] = agent1_summary
+            if agent2_summary:
+                self.conversation_data["summaries"][
+                    self.conversation_data["agent2"]
+                ] = agent2_summary
+
         self.save_log()
